@@ -66,19 +66,30 @@ class ZCalibrationHelper:
         self.gcode.register_command('CALCULATE_SWITCH_OFFSET',
                                     self.cmd_CALCULATE_SWITCH_OFFSET,
                                     desc=self.cmd_CALCULATE_SWITCH_OFFSET_help)
+
+        # Creating a endstop out of the cal-cube pin since we aren't
+        # going to be using the standard z_endstop on the top of the z-axis
+        ppins = self.printer.lookup_object('pins')
+        pin = config.get('cube_pin')
+        pin_params = ppins.lookup_pin(pin, can_invert=True)
+        mcu = pin_params['chip']
+        # Create actual endstop
+        self.z_endstop = mcu.setup_pin('endstop', pin_params)
+        self.z_endstop.add_stepper
+
     def get_status(self, eventtime):
         return {'last_query': self.last_state,
                 'last_z_offset': self.last_z_offset}
     def handle_connect(self):
         # get z-endstop object
-        for endstop, name in self.query_endstops.endstops:
-            if name == 'z':
+        # for endstop, name in self.query_endstops.endstops:
+        #    if name == 'z':
                 # check for virtual endstops..
-                if not isinstance(endstop, MCU_endstop):
-                    raise self.printer.config_error("A virtual endstop for z"
-                                                    " is not supported for %s"
-                                                    % (self.config.get_name()))
-                self.z_endstop = EndstopWrapper(self.config, endstop)
+        #        if not isinstance(endstop, MCU_endstop):
+        #            raise self.printer.config_error("A virtual endstop for z"
+        #                                            " is not supported for %s"
+        #                                            % (self.config.get_name()))
+        #        self.z_endstop = EndstopWrapper(self.config, endstop)
         # get z-endstop position from safe_z_home
         if self.nozzle_site is None:
             safe_z_home = self.printer.lookup_object('safe_z_home',
@@ -155,7 +166,7 @@ class ZCalibrationHelper:
             # a round mesh/bed would not work here so far...
             try:
                 mesh = self.printer.lookup_object('bed_mesh', default=None)
-                rri = mesh.bmc.relative_reference_index    
+                rri = mesh.bmc.relative_reference_index
                 self.bed_site = mesh.bmc.points[rri]
                 logging.debug("Z-CALIBRATION probe bed_x=%.3f bed_y=%.3f"
                               % (self.bed_site[0], self.bed_site[1]))
@@ -213,7 +224,7 @@ class ZCalibrationHelper:
         gcmd.respond_info(
             "probe accuracy results: maximum %.6f, minimum %.6f, range %.6f,"
             " average %.6f, median %.6f, standard deviation %.6f" % (
-            max_value, min_value, range_value, avg_value, median, sigma))        
+            max_value, min_value, range_value, avg_value, median, sigma))
     cmd_CALCULATE_SWITCH_OFFSET_help = ("Calculates a switch_offset based on"
                                         " the current z position")
     def cmd_CALCULATE_SWITCH_OFFSET(self, gcmd):
